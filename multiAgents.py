@@ -43,8 +43,8 @@ class ReflexAgent(Agent):
 
         # Choose one of the best actions
         scores = [self.evaluationFunction(gameState, action) for action in legalMoves]
-        bestScore = max(scores)
-        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        v = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == v]
         chosenIndex = random.choice(bestIndices) # Pick randomly among the best
 
         "Add more of your code here if you want to"
@@ -139,7 +139,39 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def maxValue(gameState, depth):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          actions = gameState.getLegalActions(0)
+          v = -100000
+          for action in actions:
+            newState = gameState.generateSuccessor(0, action)
+            v = max(v, minValue(newState, depth, 1))
+          return v
+
+        def minValue(gameState, depth, agent):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          actions = gameState.getLegalActions(agent)
+          v = 100000
+          for action in actions:
+            newState = gameState.generateSuccessor(agent, action)
+            if agent == gameState.getNumAgents() - 1:
+              v = min(v, maxValue(newState, depth + 1))
+            else:
+              v = min(v, minValue(newState, depth, agent + 1))
+          return v
+
+        actions = gameState.getLegalActions()
+        direction = Directions.STOP
+        v = -100000
+        for action in actions:
+          newState = gameState.generateSuccessor(0, action)
+          newScore = minValue(newState, 0, 1)
+          if newScore > v:
+            v = newScore
+            direction = action
+        return direction
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -151,7 +183,51 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def maxValue(gameState, depth, alpha, beta):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          v = -100000
+          actions = gameState.getLegalActions(0)
+          for action in actions:
+            if alpha > beta:
+              return v
+            newState = gameState.generateSuccessor(0, action)
+            v = max(v, minValue(newState, depth, 1, alpha, beta))
+            alpha = max(alpha, v)
+          return v
+
+        def minValue(gameState, depth, agent, alpha, beta):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          v = 100000
+          actions = gameState.getLegalActions(agent)
+          for action in actions:
+            if alpha > beta:
+              return v
+            newState = gameState.generateSuccessor(agent, action)
+            if agent == gameState.getNumAgents() - 1:
+              v = min(v, maxValue(newState, depth + 1, alpha, beta))
+            else:
+              v = min(v, minValue(newState, depth, agent + 1, alpha, beta))
+            beta = min(beta, v)
+          return v
+
+        actions = gameState.getLegalActions()
+        direction = Directions.STOP
+        v = -100000
+        alpha = -100000
+        beta = 100000
+        for action in actions:
+          if alpha > beta:
+            return direction
+          newState = gameState.generateSuccessor(0, action)
+          newScore = minValue(newState, 0, 1, alpha, beta)
+          if newScore > v:
+            v = newScore
+            direction = action
+          alpha = max(alpha, v);
+        return direction
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
