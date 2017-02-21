@@ -189,10 +189,10 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           v = -100000
           actions = gameState.getLegalActions(0)
           for action in actions:
-            if alpha > beta:
-              return v
             newState = gameState.generateSuccessor(0, action)
-            v = max(v, minValue(newState, depth, 1, alpha, beta))
+            v = max(v, minValue(newState, depth, 1, alpha, beta))        
+            if v > beta:
+              return v
             alpha = max(alpha, v)
           return v
 
@@ -202,13 +202,13 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           v = 100000
           actions = gameState.getLegalActions(agent)
           for action in actions:
-            if alpha > beta:
-              return v
             newState = gameState.generateSuccessor(agent, action)
             if agent == gameState.getNumAgents() - 1:
               v = min(v, maxValue(newState, depth + 1, alpha, beta))
             else:
-              v = min(v, minValue(newState, depth, agent + 1, alpha, beta))
+              v = min(v, minValue(newState, depth, agent + 1, alpha, beta))            
+            if alpha > v:
+              return v
             beta = min(beta, v)
           return v
 
@@ -218,13 +218,13 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         alpha = -100000
         beta = 100000
         for action in actions:
-          if alpha > beta:
-            return direction
           newState = gameState.generateSuccessor(0, action)
           newScore = minValue(newState, 0, 1, alpha, beta)
           if newScore > v:
             v = newScore
             direction = action
+          if v > beta:
+            return direction
           alpha = max(alpha, v);
         return direction
 
@@ -242,7 +242,39 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def maxValue(gameState, depth):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          v = -100000
+          actions = gameState.getLegalActions(0)
+          for action in actions:
+            newState = gameState.generateSuccessor(0, action)
+            v = max(v, expectedValue(newState, depth, 1))
+          return v
+        def expectedValue(gameState, depth, agent):
+          if depth == self.depth or gameState.isWin() or gameState.isLose():
+            return self.evaluationFunction(gameState)
+          v = 0
+          actions = gameState.getLegalActions(agent)
+          probability = len(actions)
+          for action in actions:
+            newState = gameState.generateSuccessor(agent, action)
+            if agent == gameState.getNumAgents() - 1:
+              v += maxValue(newState, depth + 1)
+            else:
+              v += expectedValue(newState, depth, agent + 1)
+          return v / probability
+
+        actions = gameState.getLegalActions(0)
+        direction = Directions.STOP
+        v = -100000.0
+        for action in actions:
+          newState = gameState.generateSuccessor(0, action)
+          newScore = max(v, expectedValue(newState, 0, 1))
+          if newScore > v:
+            v = newScore
+            direction = action
+        return direction
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -250,10 +282,52 @@ def betterEvaluationFunction(currentGameState):
       evaluation function (question 5).
 
       DESCRIPTION: <write something here so we know what you did>
+      If the game is a win or loss, immediately return
+      Otherwise calculate the closest food and add the inverse distance to the score
+      Punish idling by subtracting remaining food pellets from the score heavily
+      If the ghosts are unafraid, reward the agent by maintaining a distance from the closest
+        ghost of at least 3
+      If the ghosts are afraid, reward the agent for being near the ghosts and add remaining
+        time to the score
+      Finally, weight the reward of food and the reward for ghosts separately, and combine
+        with the currentGame score
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    Pos = currentGameState.getPacmanPosition()
+    Food = currentGameState.getFood()
+    GhostStates = currentGameState.getGhostStates()
+    ScaredTimes = [ghostState.scaredTimer for ghostState in GhostStates]
 
+    "*** YOUR CODE HERE ***"
+    if currentGameState.isWin():
+      return 100000
+    if currentGameState.isLose():
+      return -100000
+
+    pos = currentGameState.getPacmanPosition()
+    foodList = currentGameState.getFood().asList()
+    foodDist = [manhattanDistance(pos, food) for food in foodList]
+
+    ghostStates = currentGameState.getGhostStates()
+    scaredTime = [ghostState.scaredTimer for ghostState in ghostStates]
+    ghostPos = currentGameState.getGhostPositions()
+    ghostDist = [manhattanDistance(pos, ghost) for ghost in ghostPos]
+
+    foodScore = 0.0
+    ghostScore = 0.0
+
+    foodScore = 1.0 / min(foodDist)
+    foodScore -= 4 * len(foodList)
+    if sum(scaredTime) <= 1: 
+      #Escape
+      ghostScore += max(min(ghostDist), 3)
+    else:
+      #Hunt
+      for ghost in ghostDist:
+        ghostScore += 1.0 / ghost
+    for time in scaredTime:
+      ghostScore += time
+    return currentGameState.getScore() + foodScore * 3 + ghostScore * 0.4
 # Abbreviation
 better = betterEvaluationFunction
 
